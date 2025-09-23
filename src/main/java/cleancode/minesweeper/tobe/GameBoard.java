@@ -29,10 +29,6 @@ public class GameBoard {
         return board[0].length;
     }
 
-    public String getSign(CellPosition cellPosition) {
-        return findCell(cellPosition).getSign();
-    }
-
     public void flagAt(CellPosition cellPosition) {
         findCell(cellPosition).flag();
     }
@@ -143,5 +139,10 @@ public class GameBoard {
                 .filter(position -> position.isRowIndexLessThen(getRowSize())) // 움직인 좌표가 보드의 범위 안인것만
                 .filter(position -> position.isColIndexLessThen(getColSize()))
                 .toList();
+    }
+
+    public CellSnapshot getSnapshot(CellPosition cellPosition) {
+        Cell cell = findCell(cellPosition);
+        return cell.getSnapshot();
     }
 }
