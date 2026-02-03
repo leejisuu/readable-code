@@ -8,7 +8,7 @@ public class CellPosition {
     private final int colIndex;
 
     private CellPosition(int rowIndex, int colIndex) {
-        if(rowIndex < 0 || colIndex < 0) {
+        if (rowIndex < 0 || colIndex < 0) {
             throw new IllegalArgumentException("올바르지 않은 좌표입니다.");
         }
         this.rowIndex = rowIndex;
@@ -46,7 +46,7 @@ public class CellPosition {
     // 주변 셀 좌표 반환
 
     public CellPosition calculatePositionBy(RelativePosition relativePosition) {
-        if(canCalculatePositionBy(relativePosition)) {
+        if (canCalculatePositionBy(relativePosition)) {
             return CellPosition.of(
                     this.rowIndex + relativePosition.getDeltaRow(),
                     this.colIndex + relativePosition.getDeltaCol()
@@ -54,6 +54,7 @@ public class CellPosition {
         }
         throw new IllegalArgumentException("움직일 수 있는 좌표가 아닙니다.");
     }
+
     public boolean isRowIndexLessThen(int rowIndex) {
         // rowIndex : 보드의 크기
         // this.rowIndex : 움직인 좌표 인덱스
