@@ -7,13 +7,14 @@ import cleancode.minesweeper.tobe.minesweeper.board.position.CellPositions;
 import cleancode.minesweeper.tobe.minesweeper.board.position.RelativePosition;
 
 import java.util.List;
+import java.util.Stack;
 
 
 /*
-* 게임 도메인 로직 관리
-* - 게임 상태 관리
-* - 게임 행위 관리(셀 오픈, 깃발 꽂기)
-* */
+ * 게임 도메인 로직 관리
+ * - 게임 상태 관리
+ * - 게임 행위 관리(셀 오픈, 깃발 꽂기)
+ * */
 
 public class GameBoard {
     private final Cell[][] board;
@@ -57,7 +58,8 @@ public class GameBoard {
         }
 
         // 지뢰가 아니면 주변 셀 오픈(재귀)
-        openSurroundedCells(cellPosition);
+        // openSurroundedCells(cellPosition);
+        openSurroundedCells2(cellPosition);
 
         // 게임 종료 여부 체크
         checkIfGameIsOver();
@@ -110,39 +112,40 @@ public class GameBoard {
 
     private void initializeEmptyCells(CellPositions cellPositions) {
         List<CellPosition> allPositions = cellPositions.getPositions();
-        for(CellPosition position : allPositions) {
+        for (CellPosition position : allPositions) {
             updateCellAt(position, new EmptyCell());
         }
     }
+
     private void initializeLandMineCells(List<CellPosition> landMinePositions) {
-        for(CellPosition position : landMinePositions) {
+        for (CellPosition position : landMinePositions) {
             updateCellAt(position, new LandMineCell());
         }
     }
 
     private void initializeNumberCells(List<CellPosition> numberPositionCandidates) {
-        for(CellPosition cadidatePosition : numberPositionCandidates) {
+        for (CellPosition cadidatePosition : numberPositionCandidates) {
             int count = countNearbyLandMines(cadidatePosition);
-            if(count != 0) {
+            if (count != 0) {
                 updateCellAt(cadidatePosition, new NumberCell(count));
             }
         }
     }
 
     private int countNearbyLandMines(CellPosition cellPosition) {
-        long count = calculateSurroundedPositions(cellPosition).stream()
+        long count = calculateSurroundedPositions(cellPosition, getRowSize(), getColSize()).stream()
                 .filter(this::isLandMinCellAt)
                 .count();
 
         return (int) count;
     }
 
-    private List<CellPosition> calculateSurroundedPositions(CellPosition cellPosition) {
+    private List<CellPosition> calculateSurroundedPositions(CellPosition cellPosition, int rowSize, int colSize) {
         return RelativePosition.SURROUNEDE_POSITIONS.stream()
                 .filter(cellPosition::canCalculatePositionBy) // 주변 셀의 index가 0 이상인것만
                 .map(cellPosition::calculatePositionBy) // 움직인 좌표 반환
-                .filter(position -> position.isRowIndexLessThen(getRowSize())) // 움직인 좌표가 보드의 범위 안인것만
-                .filter(position -> position.isColIndexLessThen(getColSize()))
+                .filter(position -> position.isRowIndexLessThen(rowSize)) // 움직인 좌표가 보드의 범위 안인것만
+                .filter(position -> position.isColIndexLessThen(colSize))
                 .toList();
     }
 
@@ -166,11 +169,42 @@ public class GameBoard {
             return;
         }
 
-        List<CellPosition> surroundedPositions = calculateSurroundedPositions(cellPosition);
+        List<CellPosition> surroundedPositions = calculateSurroundedPositions(cellPosition, getRowSize(), getColSize());
         surroundedPositions.forEach(this::openSurroundedCells);
-
-        checkIfGameIsOver();
     }
+
+    private void openSurroundedCells2(CellPosition cellPosition) {
+        Stack<CellPosition> stack = new Stack<>();
+        stack.push(cellPosition); // 사용자가 열겠다고 선택한 셀
+
+        while (!stack.isEmpty()) {
+            openAndPushCellAt(stack);
+        }
+    }
+
+    private void openAndPushCellAt(Stack<CellPosition> stack) {
+        CellPosition currentCellPosition = stack.pop();
+
+        if (isOpenedCell(currentCellPosition)) { // 이미 열린 셀이면 리턴
+            return;
+        }
+        if (isLandMinCellAt(currentCellPosition)) { // 지뢰면 리턴
+            return;
+        }
+
+        // 해당 셀 오픈
+        openOneCellAt(currentCellPosition);
+
+        if (doesCellHaveLandMineCount(currentCellPosition)) { // 주변에 지뢰가 1개 이상이라면 board에 지뢰 개수를 노출하고 리턴
+            return;
+        }
+
+        List<CellPosition> surroundedPositions = calculateSurroundedPositions(currentCellPosition, getRowSize(), getColSize());
+        for (CellPosition surroundedPosition : surroundedPositions) {
+            stack.push(surroundedPosition);
+        }
+    }
+
 
     private void openOneCellAt(CellPosition cellPosition) {
         findCell(cellPosition).open();
