@@ -20,59 +20,16 @@ public class GameBoard {
     private final int landMineCount;
     private GameStatus gameStatus;
 
+    // 생성자
     public GameBoard(GameLevel gameLevel) {
         board = new Cell[gameLevel.getRowSize()][gameLevel.getColSize()];
         landMineCount = gameLevel.getLandMineCount();
         initalizeGameStatus();
     }
 
-    public Cell findCell(CellPosition cellPosition) {
-        return board[cellPosition.getRowIndex()][cellPosition.getColIndex()];
-    }
+    // [S] public 메서드
 
-    public int getRowSize() {
-        return board.length;
-    }
-
-    public int getColSize() {
-        return board[0].length;
-    }
-
-    public void flagAt(CellPosition cellPosition) {
-        findCell(cellPosition).flag();
-
-        checkIfGameIsOver();
-    }
-
-    public void openOneCellAt(CellPosition cellPosition) {
-        findCell(cellPosition).open();
-    }
-
-    public boolean isLandMinCellAt(CellPosition cellPosition) {
-        return findCell(cellPosition).isLandMine();
-    }
-
-    private boolean doesCellHaveLandMineCount(CellPosition cellPosition) {
-        return findCell(cellPosition).hasLandMineCount();
-    }
-
-    private boolean isOpenedCell(CellPosition cellPosition) {
-        return findCell(cellPosition).isOpened();
-    }
-
-    public boolean isAllCellChecked() {
-        // 모든 셀이 다 체크 됐으면 게임 종료
-        // 셀 사인 비교를 메서드 생성해서 비교
-        Cells cells = Cells.from(board);
-        return cells.isAllChecked();
-    }
-
-    // 입력받은 좌표가 board의 크기보다 크니?
-    public boolean isInvalidCellPosition(CellPosition cellPosition) {
-        return cellPosition.isRowIndexMoreThenOrEqual(getRowSize())
-                || cellPosition.isColIndexMoreThenOrEqual(getColSize());
-    }
-
+    // 상태 변경
     public void initializeGame() {
         initalizeGameStatus();
 
@@ -92,6 +49,61 @@ public class GameBoard {
         initializeNumberCells(numberPositionCandidates);
     }
 
+    public void openAt(CellPosition cellPosition) {
+        if (isLandMinCellAt(cellPosition)) { // 지뢰 셀을 선택한 경우
+            openOneCellAt(cellPosition);
+            changeGameStatusToLose();
+            return;
+        }
+
+        // 지뢰가 아니면 주변 셀 오픈(재귀)
+        openSurroundedCells(cellPosition);
+
+        // 게임 종료 여부 체크
+        checkIfGameIsOver();
+    }
+
+    public void flagAt(CellPosition cellPosition) {
+        findCell(cellPosition).flag();
+
+        checkIfGameIsOver();
+    }
+
+    // 판별
+    public boolean isInvalidCellPosition(CellPosition cellPosition) {
+        // 입력받은 좌표가 board의 크기보다 크니?
+        return cellPosition.isRowIndexMoreThenOrEqual(getRowSize())
+                || cellPosition.isColIndexMoreThenOrEqual(getColSize());
+    }
+
+    public boolean isInProgess() {
+        return gameStatus == GameStatus.IN_PROGRESS;
+    }
+
+    public boolean isWinStatus() {
+        return gameStatus == GameStatus.WIN;
+    }
+
+    public boolean isLoseStatus() {
+        return gameStatus == GameStatus.LOSE;
+    }
+
+    // 조회
+    public CellSnapshot getSnapshot(CellPosition cellPosition) {
+        Cell cell = findCell(cellPosition);
+        return cell.getSnapshot();
+    }
+
+    public int getRowSize() {
+        return board.length;
+    }
+
+    public int getColSize() {
+        return board[0].length;
+    }
+    // [E] public 메서드
+
+    // [S] private 메서드
     private void initalizeGameStatus() {
         gameStatus = GameStatus.IN_PROGRESS;
     }
@@ -117,11 +129,7 @@ public class GameBoard {
         }
     }
 
-    private void updateCellAt(CellPosition position, Cell cell) {
-        board[position.getRowIndex()][position.getColIndex()] = cell;
-    }
-
-    public int countNearbyLandMines(CellPosition cellPosition) {
+    private int countNearbyLandMines(CellPosition cellPosition) {
         long count = calculateSurroundedPositions(cellPosition).stream()
                 .filter(this::isLandMinCellAt)
                 .count();
@@ -129,7 +137,20 @@ public class GameBoard {
         return (int) count;
     }
 
-    public void openSurroundedCells(CellPosition cellPosition) {
+    private List<CellPosition> calculateSurroundedPositions(CellPosition cellPosition) {
+        return RelativePosition.SURROUNEDE_POSITIONS.stream()
+                .filter(cellPosition::canCalculatePositionBy) // 주변 셀의 index가 0 이상인것만
+                .map(cellPosition::calculatePositionBy) // 움직인 좌표 반환
+                .filter(position -> position.isRowIndexLessThen(getRowSize())) // 움직인 좌표가 보드의 범위 안인것만
+                .filter(position -> position.isColIndexLessThen(getColSize()))
+                .toList();
+    }
+
+    private void updateCellAt(CellPosition position, Cell cell) {
+        board[position.getRowIndex()][position.getColIndex()] = cell;
+    }
+
+    private void openSurroundedCells(CellPosition cellPosition) {
         // 셀 사인 비교를 메서드 생성해서 비교
         if (isOpenedCell(cellPosition)) { // 이미 열린 셀이면 리턴
             return;
@@ -151,22 +172,20 @@ public class GameBoard {
         checkIfGameIsOver();
     }
 
-    private List<CellPosition> calculateSurroundedPositions(CellPosition cellPosition) {
-        return RelativePosition.SURROUNEDE_POSITIONS.stream()
-                .filter(cellPosition::canCalculatePositionBy) // 주변 셀의 index가 0 이상인것만
-                .map(cellPosition::calculatePositionBy) // 움직인 좌표 반환
-                .filter(position -> position.isRowIndexLessThen(getRowSize())) // 움직인 좌표가 보드의 범위 안인것만
-                .filter(position -> position.isColIndexLessThen(getColSize()))
-                .toList();
+    private void openOneCellAt(CellPosition cellPosition) {
+        findCell(cellPosition).open();
     }
 
-    public CellSnapshot getSnapshot(CellPosition cellPosition) {
-        Cell cell = findCell(cellPosition);
-        return cell.getSnapshot();
+    private boolean isOpenedCell(CellPosition cellPosition) {
+        return findCell(cellPosition).isOpened();
     }
 
-    public boolean isInProgess() {
-        return gameStatus == GameStatus.IN_PROGRESS;
+    private boolean isLandMinCellAt(CellPosition cellPosition) {
+        return findCell(cellPosition).isLandMine();
+    }
+
+    private boolean doesCellHaveLandMineCount(CellPosition cellPosition) {
+        return findCell(cellPosition).hasLandMineCount();
     }
 
     private void checkIfGameIsOver() {
@@ -175,33 +194,24 @@ public class GameBoard {
         }
     }
 
-    private void changeGameStatusToWin() {
-        gameStatus = GameStatus.WIN;
+    private boolean isAllCellChecked() {
+        // 모든 셀이 다 체크 됐으면 게임 종료
+        // 셀 사인 비교를 메서드 생성해서 비교
+        Cells cells = Cells.from(board);
+        return cells.isAllChecked();
     }
 
-    public void openAt(CellPosition cellPosition) {
-        if (isLandMinCellAt(cellPosition)) { // 지뢰 셀을 선택한 경우
-            openOneCellAt(cellPosition);
-            changeGameStatusToLose();
-            return;
-        }
-
-        // 지뢰가 아니면 주변 셀 오픈(재귀)
-        openSurroundedCells(cellPosition);
-
-        // 게임 종료 여부 체크
-        checkIfGameIsOver();
+    private void changeGameStatusToWin() {
+        gameStatus = GameStatus.WIN;
     }
 
     private void changeGameStatusToLose() {
         gameStatus = GameStatus.LOSE;
     }
 
-    public boolean isWinStatus() {
-        return gameStatus == GameStatus.WIN;
+    private Cell findCell(CellPosition cellPosition) {
+        return board[cellPosition.getRowIndex()][cellPosition.getColIndex()];
     }
 
-    public boolean isLoseStatus() {
-        return gameStatus == GameStatus.LOSE;
-    }
+    // [E] private 메서드
 }
