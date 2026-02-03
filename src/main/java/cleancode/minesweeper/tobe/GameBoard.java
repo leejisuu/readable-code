@@ -8,13 +8,22 @@ import cleancode.minesweeper.tobe.position.RelativePosition;
 
 import java.util.List;
 
+
+/*
+* 게임 도메인 로직 관리
+* - 게임 상태 관리
+* - 게임 행위 관리(셀 오픈, 깃발 꽂기)
+* */
+
 public class GameBoard {
     private final Cell[][] board;
     private final int landMineCount;
+    private GameStatus gameStatus;
 
     public GameBoard(GameLevel gameLevel) {
         board = new Cell[gameLevel.getRowSize()][gameLevel.getColSize()];
         landMineCount = gameLevel.getLandMineCount();
+        initalizeGameStatus();
     }
 
     public Cell findCell(CellPosition cellPosition) {
@@ -31,9 +40,11 @@ public class GameBoard {
 
     public void flagAt(CellPosition cellPosition) {
         findCell(cellPosition).flag();
+
+        checkIfGameIsOver();
     }
 
-    public void openAt(CellPosition cellPosition) {
+    public void openOneCellAt(CellPosition cellPosition) {
         findCell(cellPosition).open();
     }
 
@@ -63,6 +74,8 @@ public class GameBoard {
     }
 
     public void initializeGame() {
+        initalizeGameStatus();
+
         // board의 크기만큼 CellPosition을 세팅해서 List<CellPosition> 정보 갖고 있음
         CellPositions cellPositions = CellPositions.from(board);
 
@@ -77,6 +90,10 @@ public class GameBoard {
         List<CellPosition> numberPositionCandidates = cellPositions.subtract(landMinePositions);
         // 나머지 셀은 주변셀의 지뢰 개수 계산해서 세팅
         initializeNumberCells(numberPositionCandidates);
+    }
+
+    private void initalizeGameStatus() {
+        gameStatus = GameStatus.IN_PROGRESS;
     }
 
     private void initializeEmptyCells(CellPositions cellPositions) {
@@ -122,7 +139,7 @@ public class GameBoard {
         }
 
         // 해당 셀 오픈
-        openAt(cellPosition);
+        openOneCellAt(cellPosition);
 
         if (doesCellHaveLandMineCount(cellPosition)) { // 주변에 지뢰가 1개 이상이라면 board에 지뢰 개수를 노출하고 리턴
             return;
@@ -130,6 +147,8 @@ public class GameBoard {
 
         List<CellPosition> surroundedPositions = calculateSurroundedPositions(cellPosition);
         surroundedPositions.forEach(this::openSurroundedCells);
+
+        checkIfGameIsOver();
     }
 
     private List<CellPosition> calculateSurroundedPositions(CellPosition cellPosition) {
@@ -144,5 +163,45 @@ public class GameBoard {
     public CellSnapshot getSnapshot(CellPosition cellPosition) {
         Cell cell = findCell(cellPosition);
         return cell.getSnapshot();
+    }
+
+    public boolean isInProgess() {
+        return gameStatus == GameStatus.IN_PROGRESS;
+    }
+
+    private void checkIfGameIsOver() {
+        if (isAllCellChecked()) { // open -> true는 보드 판을 다 열었다는 것. 게임 종료
+            changeGameStatusToWin();
+        }
+    }
+
+    private void changeGameStatusToWin() {
+        gameStatus = GameStatus.WIN;
+    }
+
+    public void openAt(CellPosition cellPosition) {
+        if (isLandMinCellAt(cellPosition)) { // 지뢰 셀을 선택한 경우
+            openOneCellAt(cellPosition);
+            changeGameStatusToLose();
+            return;
+        }
+
+        // 지뢰가 아니면 주변 셀 오픈(재귀)
+        openSurroundedCells(cellPosition);
+
+        // 게임 종료 여부 체크
+        checkIfGameIsOver();
+    }
+
+    private void changeGameStatusToLose() {
+        gameStatus = GameStatus.LOSE;
+    }
+
+    public boolean isWinStatus() {
+        return gameStatus == GameStatus.WIN;
+    }
+
+    public boolean isLoseStatus() {
+        return gameStatus == GameStatus.LOSE;
     }
 }
