@@ -8,3 +8,10 @@ public class StudyCafeApplication {
     }
 
 }
+
+/*
+* (1) 추상화 레벨
+* - 중복 제거, 메서드 추출
+* - 객체에 메세지 보내기
+*
+* */
